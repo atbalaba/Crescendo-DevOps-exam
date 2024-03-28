@@ -35,6 +35,21 @@ resource "aws_subnet" "public_subnet_2" {
   map_public_ip_on_launch = true
 }
 
+# NAT Gateway
+resource "aws_nat_gateway" "nat_gateway" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_subnet_1.id
+}
+
+resource "aws_eip" "nat_eip" {
+  domain = "vpc"
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "internet_gateway" {
+  vpc_id = aws_vpc.main.id
+}
+
 # General Security Group
 resource "aws_security_group" "ec2_sec_group" {
   name        = "Allow vital ports"
@@ -185,4 +200,51 @@ resource "aws_instance" "ec2_instance" {
   sudo systemctl enable tomcat
   sudo systemctl start tomcat
   EOF
+}
+
+# Magnolia Instance Provisioning
+resource "aws_instance" "magnolia_instance" {
+  ami             = "ami-06c4be2792f419b7b"
+  instance_type   = "t2.micro"
+  subnet_id       = aws_subnet.private_subnet_1.id
+  security_groups = [aws_security_group.ec2_sec_group.name]
+  tags = {
+    Name = "test_instance"
+  }
+  user_data = <<-EOF
+  #!/bin/bash
+  sudo apt update
+  sudo apt install -y default-jdk nginx unzip
+
+  mkdir /magnolia && cd /magnolia
+  wget https://nexus.magnolia-cms.com/repository/public/info/magnolia/bundle/magnolia-community-demo-webapp/6.2.43/magnolia-community-demo-webapp-6.2.43-tomcat-bundle.zip
+  unzip magnolia-community-demo-webapp-6.2.43-tomcat-bundle.zip
+  cd magnolia-6.2.43/apache-tomcat-9.0.86/bin
+  ./magnolia_control.sh start --ignore-open-files-limit 
+              
+  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt \
+   -subj "/C=test/ST=test/L=test/O=test/OU=test/CN=test"
+
+  sudo tee /etc/nginx/sites-available/magnolia > /dev/null <<EOT
+    server {
+        listen 443 ssl;
+        server_name _;
+
+        ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+        ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $host;
+            roxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+          }
+      }
+  EOT
+
+  sudo ln -s /etc/nginx/sites-available/magnolia /etc/nginx/sites-enabled/
+  sudo nginx -t
+  sudo systemctl reload nginx
+  EOF  
 }
