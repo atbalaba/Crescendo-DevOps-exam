@@ -1,5 +1,6 @@
 name: Destroy Infra
 
+# Manual trigger for infra destruction.
 on:
   workflow_dispatch:  
   

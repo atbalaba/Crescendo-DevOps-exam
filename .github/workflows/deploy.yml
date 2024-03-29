@@ -1,5 +1,6 @@
 name: Deploy Infra
 
+# Automatic deploy to master brnach after a successsful push event.
 on:
   push:
     branches:
