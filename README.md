@@ -13,13 +13,13 @@ This repository serves as a an output for Credendo DevOps Exam.
 1. Clone this repository:
 
     ```bash
-    git clone [<repository_url>](https://github.com/atbalaba/Crescendo-DevOps-exam.git)
+    git clone https://github.com/atbalaba/Crescendo-DevOps-exam.git
     ```
 
 2. Navigate into the cloned directory:
 
     ```bash
-    cd Crescendo-DevOps-exam
+    cd Crescendo-DevOps-exam/
     ```
 
 3. If you want to apply the configurations, ensure you have Terraform installed locally.
